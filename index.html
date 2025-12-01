@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hydraulic Network Optimization</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --card: #1f2937;
+      --accent: #22d3ee;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --warning: #fbbf24;
+    }
+
+    * {
+      box-sizing: border-box;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.08), transparent 35%),
+        radial-gradient(circle at 80% 0%, rgba(248, 113, 113, 0.08), transparent 40%),
+        var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px;
+      gap: 20px;
+    }
+
+    header {
+      max-width: 960px;
+      width: 100%;
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+      letter-spacing: -0.02em;
+    }
+
+    p.subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    main {
+      width: 100%;
+      max-width: 960px;
+      display: grid;
+      gap: 16px;
+      grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+    }
+
+    .canvas-wrapper {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 20px 70px rgba(0, 0, 0, 0.35);
+      position: relative;
+      overflow: hidden;
+    }
+
+    svg {
+      width: 100%;
+      height: 520px;
+      border-radius: 12px;
+      background: linear-gradient(145deg, rgba(31, 41, 55, 0.7), rgba(17, 24, 39, 0.8));
+      backdrop-filter: blur(6px);
+    }
+
+    .node {
+      fill: #0ea5e9;
+      stroke: #67e8f9;
+      stroke-width: 2;
+      filter: drop-shadow(0 0 6px rgba(14, 165, 233, 0.6));
+    }
+
+    .node-label {
+      fill: var(--text);
+      font-weight: 700;
+      font-size: 12px;
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    .pipe {
+      stroke-linecap: round;
+      transition: stroke-width 0.6s ease, stroke 0.6s ease;
+      filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.3));
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 14px 16px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .stat-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .label {
+      color: var(--muted);
+      font-size: 0.8rem;
+      margin: 0 0 4px;
+    }
+
+    .value {
+      margin: 0;
+      font-weight: 700;
+      font-size: 1.15rem;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      background: linear-gradient(135deg, #22d3ee, #0ea5e9);
+      color: #0b1220;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.2s ease, filter 0.2s ease;
+      box-shadow: 0 8px 26px rgba(14, 165, 233, 0.35);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .log {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 0.9rem;
+      color: var(--muted);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      max-height: 160px;
+      overflow-y: auto;
+    }
+
+    .legend {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .chip .color {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .ticker {
+      font-size: 0.9rem;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .pulse {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.7);
+      animation: pulse 1.6s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.6);
+      }
+      70% {
+        box-shadow: 0 0 0 12px rgba(34, 211, 238, 0);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(34, 211, 238, 0);
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Hydraulic Network Meta-Heuristic Animation</h1>
+    <p class="subtitle">
+      Diameters animate while a fictitious swarm searches for an efficient configuration. No real optimizer runs — it's pure visualization.
+    </p>
+  </header>
+
+  <main>
+    <div class="canvas-wrapper">
+      <div class="ticker">
+        <span class="pulse" aria-hidden="true"></span>
+        <span id="ticker-text">Ready to optimize</span>
+      </div>
+      <svg id="network" viewBox="0 0 900 520" aria-label="Hydraulic network visualization"></svg>
+    </div>
+
+    <div class="panel">
+      <div class="controls">
+        <button id="start">Start</button>
+        <button id="pause" disabled>Pause</button>
+        <button id="reset">Reset</button>
+      </div>
+
+      <div class="stats">
+        <div class="stat-card">
+          <p class="label">Iteration</p>
+          <p class="value" id="iteration">0</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">Global Best Cost</p>
+          <p class="value" id="best-cost">—</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">Current Candidate Cost</p>
+          <p class="value" id="candidate-cost">—</p>
+        </div>
+        <div class="stat-card">
+          <p class="label">Population Diversity</p>
+          <p class="value" id="diversity">—</p>
+        </div>
+      </div>
+
+      <div class="legend">
+        <span class="chip"><span class="color" style="background:#22d3ee"></span> Current candidate</span>
+        <span class="chip"><span class="color" style="background:#f472b6"></span> Global best</span>
+        <span class="chip"><span class="color" style="background:#fbbf24"></span> Perturbation</span>
+      </div>
+
+      <div class="log" id="log" aria-live="polite"></div>
+    </div>
+  </main>
+
+  <script>
+    const svg = document.getElementById("network");
+    const iterationEl = document.getElementById("iteration");
+    const bestCostEl = document.getElementById("best-cost");
+    const candidateCostEl = document.getElementById("candidate-cost");
+    const diversityEl = document.getElementById("diversity");
+    const logEl = document.getElementById("log");
+    const tickerText = document.getElementById("ticker-text");
+    const startBtn = document.getElementById("start");
+    const pauseBtn = document.getElementById("pause");
+    const resetBtn = document.getElementById("reset");
+
+    const nodes = [
+      { id: "S1", x: 120, y: 260 },
+      { id: "N1", x: 280, y: 160 },
+      { id: "N2", x: 280, y: 360 },
+      { id: "J1", x: 460, y: 160 },
+      { id: "J2", x: 460, y: 360 },
+      { id: "T1", x: 640, y: 120 },
+      { id: "T2", x: 640, y: 260 },
+      { id: "T3", x: 640, y: 400 },
+      { id: "D1", x: 820, y: 120 },
+      { id: "D2", x: 820, y: 260 },
+      { id: "D3", x: 820, y: 400 },
+    ];
+
+    const pipes = [
+      { id: "P1", from: "S1", to: "N1", length: 120 },
+      { id: "P2", from: "S1", to: "N2", length: 120 },
+      { id: "P3", from: "N1", to: "J1", length: 180 },
+      { id: "P4", from: "N2", to: "J2", length: 180 },
+      { id: "P5", from: "N1", to: "T2", length: 220 },
+      { id: "P6", from: "N2", to: "T2", length: 220 },
+      { id: "P7", from: "J1", to: "T1", length: 180 },
+      { id: "P8", from: "J1", to: "T2", length: 160 },
+      { id: "P9", from: "J2", to: "T2", length: 160 },
+      { id: "P10", from: "J2", to: "T3", length: 180 },
+      { id: "P11", from: "T1", to: "D1", length: 160 },
+      { id: "P12", from: "T2", to: "D2", length: 160 },
+      { id: "P13", from: "T3", to: "D3", length: 160 },
+    ];
+
+    const svgPipes = new Map();
+    const svgNodes = new Map();
+
+    const config = {
+      iteration: 0,
+      running: false,
+      intervalId: null,
+      current: {},
+      best: {},
+      bestCost: Infinity,
+      history: [],
+    };
+
+    const pipeDiameterRange = { min: 4, max: 16 };
+
+    function mapDiameterToWidth(diameter) {
+      const { min, max } = pipeDiameterRange;
+      const t = (diameter - min) / (max - min);
+      return 4 + t * 14;
+    }
+
+    function pipeColor(diameter, isBest) {
+      if (isBest) return "#f472b6";
+      const t = (diameter - pipeDiameterRange.min) / (pipeDiameterRange.max - pipeDiameterRange.min);
+      const hue = 190 - t * 80;
+      return `hsl(${hue}, 80%, 55%)`;
+    }
+
+    function drawNetwork() {
+      nodes.forEach((node) => {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", node.x);
+        circle.setAttribute("cy", node.y);
+        circle.setAttribute("r", 12);
+        circle.setAttribute("class", "node");
+        svg.appendChild(circle);
+        const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+        label.setAttribute("x", node.x);
+        label.setAttribute("y", node.y + 4);
+        label.setAttribute("text-anchor", "middle");
+        label.setAttribute("class", "node-label");
+        label.textContent = node.id;
+        svg.appendChild(label);
+        svgNodes.set(node.id, { circle, label });
+      });
+
+      pipes.forEach((pipe) => {
+        const from = nodes.find((n) => n.id === pipe.from);
+        const to = nodes.find((n) => n.id === pipe.to);
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", from.x);
+        line.setAttribute("y1", from.y);
+        line.setAttribute("x2", to.x);
+        line.setAttribute("y2", to.y);
+        line.setAttribute("stroke", "#22d3ee");
+        line.setAttribute("stroke-width", 6);
+        line.setAttribute("class", "pipe");
+        line.setAttribute("data-id", pipe.id);
+        svg.insertBefore(line, svg.firstChild);
+        svgPipes.set(pipe.id, line);
+      });
+    }
+
+    function randomDiameter(base = null) {
+      const min = pipeDiameterRange.min;
+      const max = pipeDiameterRange.max;
+      if (base === null) {
+        return min + Math.random() * (max - min);
+      }
+      const wobble = (Math.random() - 0.5) * 4;
+      return Math.min(max, Math.max(min, base + wobble));
+    }
+
+    function generateCandidate() {
+      const diameters = {};
+      pipes.forEach((pipe) => {
+        const influence = Math.random() > 0.4 && config.best[pipe.id] ? config.best[pipe.id] : null;
+        diameters[pipe.id] = randomDiameter(influence);
+      });
+      return diameters;
+    }
+
+    function computeCost(candidate) {
+      const lengthPenalty = pipes.reduce((sum, pipe) => sum + candidate[pipe.id] * pipe.length * 0.8, 0);
+      const balancePenalty = Object.values(candidate).reduce((sum, d) => sum + Math.abs(d - 10) * 25, 0);
+      const smoothPenalty = pipes.reduce((sum, pipe) => {
+        const fromDegree = pipes.filter((p) => p.from === pipe.from || p.to === pipe.from).length;
+        const toDegree = pipes.filter((p) => p.from === pipe.to || p.to === pipe.to).length;
+        const degreeBonus = (fromDegree + toDegree) * 3;
+        return sum + degreeBonus * Math.abs(candidate[pipe.id] - 10);
+      }, 0);
+      return lengthPenalty + balancePenalty + smoothPenalty + (Math.random() * 120 - 60);
+    }
+
+    function diversityScore(candidate) {
+      const values = Object.values(candidate);
+      const avg = values.reduce((a, b) => a + b, 0) / values.length;
+      const variance = values.reduce((a, b) => a + (b - avg) ** 2, 0) / values.length;
+      return Math.sqrt(variance).toFixed(2);
+    }
+
+    function updateVisuals(candidate, isBest = false) {
+      Object.entries(candidate).forEach(([pipeId, diameter]) => {
+        const line = svgPipes.get(pipeId);
+        if (!line) return;
+        line.setAttribute("stroke-width", mapDiameterToWidth(diameter));
+        line.setAttribute("stroke", pipeColor(diameter, isBest));
+      });
+    }
+
+    function log(message) {
+      const entry = document.createElement("div");
+      entry.textContent = message;
+      logEl.prepend(entry);
+      const entries = Array.from(logEl.children);
+      if (entries.length > 14) entries.pop().remove();
+    }
+
+    function step() {
+      if (!config.running) return;
+      config.iteration += 1;
+      iterationEl.textContent = config.iteration;
+
+      const candidate = generateCandidate();
+      const cost = computeCost(candidate);
+      candidateCostEl.textContent = cost.toFixed(1);
+      diversityEl.textContent = diversityScore(candidate);
+      tickerText.textContent = `Iteration ${config.iteration}: evaluating swarm members...`;
+
+      config.current = candidate;
+      updateVisuals(candidate);
+
+      if (cost < config.bestCost) {
+        config.bestCost = cost;
+        config.best = candidate;
+        bestCostEl.textContent = cost.toFixed(1);
+        updateVisuals(candidate, true);
+        log(`Global best improved to ${cost.toFixed(1)} at iteration ${config.iteration}.`);
+      } else if (Math.random() < 0.15 && config.best) {
+        updateVisuals(config.best, true);
+        log("Intensifying around best solution...");
+      } else if (Math.random() < 0.1) {
+        const perturbed = Object.fromEntries(
+          Object.entries(config.best).map(([k, v]) => [k, randomDiameter(v)])
+        );
+        updateVisuals(perturbed);
+        tickerText.textContent = `Iteration ${config.iteration}: perturbing candidate space`;
+        log("Injecting perturbation to escape local minima.");
+      }
+
+      if (config.iteration % 20 === 0) {
+        const bestSnapshot = Object.entries(config.best)
+          .map(([id, d]) => `${id}:${d.toFixed(1)}`)
+          .slice(0, 6)
+          .join("  ");
+        log(`Snapshot ➜ ${bestSnapshot}`);
+      }
+    }
+
+    function startAnimation() {
+      if (config.running) return;
+      config.running = true;
+      startBtn.disabled = true;
+      pauseBtn.disabled = false;
+      tickerText.textContent = "Swarm exploring candidate solutions...";
+      config.intervalId = setInterval(step, 750);
+    }
+
+    function pauseAnimation() {
+      config.running = false;
+      startBtn.disabled = false;
+      pauseBtn.disabled = true;
+      tickerText.textContent = "Paused — swarm waiting for next command.";
+      clearInterval(config.intervalId);
+    }
+
+    function resetAnimation() {
+      pauseAnimation();
+      config.iteration = 0;
+      config.current = {};
+      config.best = {};
+      config.bestCost = Infinity;
+      iterationEl.textContent = "0";
+      bestCostEl.textContent = "—";
+      candidateCostEl.textContent = "—";
+      diversityEl.textContent = "—";
+      tickerText.textContent = "Reset complete. Ready to optimize.";
+      logEl.innerHTML = "";
+      pipes.forEach((pipe) => {
+        const baseDiameter = randomDiameter();
+        config.current[pipe.id] = baseDiameter;
+      });
+      updateVisuals(config.current);
+    }
+
+    startBtn.addEventListener("click", startAnimation);
+    pauseBtn.addEventListener("click", pauseAnimation);
+    resetBtn.addEventListener("click", resetAnimation);
+
+    drawNetwork();
+    resetAnimation();
+  </script>
+</body>
+</html>
