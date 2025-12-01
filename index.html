@@ -213,6 +213,29 @@
       stroke-linecap: round;
     }
 
+    .float-icon {
+      position: absolute;
+      font-size: 1.15rem;
+      pointer-events: none;
+      animation: riseFade 1.6s ease-out forwards;
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+    }
+
+    @keyframes riseFade {
+      0% {
+        opacity: 0;
+        transform: translate(-50%, 10px) scale(0.85);
+      }
+      20% {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+      }
+      100% {
+        opacity: 0;
+        transform: translate(-50%, -26px) scale(1.05);
+      }
+    }
+
     .ticker {
       font-size: 0.9rem;
       color: var(--text);
@@ -342,6 +365,7 @@
 
     const svgPipes = new Map();
     const svgNodes = new Map();
+    const canvasWrapper = document.querySelector(".canvas-wrapper");
 
     const config = {
       iteration: 0,
@@ -351,6 +375,7 @@
       best: {},
       bestCost: Infinity,
       history: [],
+      lastDiameters: {},
     };
 
     const pipeDiameterRange = { min: 4, max: 16 };
@@ -444,10 +469,45 @@
       Object.entries(candidate).forEach(([pipeId, diameter]) => {
         const line = svgPipes.get(pipeId);
         if (!line) return;
+        const previous = config.lastDiameters[pipeId];
         line.setAttribute("stroke-width", mapDiameterToWidth(diameter));
         line.setAttribute("stroke", pipeColor(diameter));
         line.classList.toggle("best", isBest);
+
+        if (previous !== undefined && Math.abs(previous - diameter) > 0.05) {
+          emitImpactIcon(pipeId);
+        }
+        config.lastDiameters[pipeId] = diameter;
       });
+    }
+
+    function emitImpactIcon(pipeId) {
+      const line = svgPipes.get(pipeId);
+      if (!line || !canvasWrapper) return;
+
+      const types = [
+        { icon: "💰", label: "cost savings" },
+        { icon: "🍃", label: "sustainability boost" },
+        { icon: "⏱️", label: "performance gain" },
+      ];
+      const choice = types[Math.floor(Math.random() * types.length)];
+
+      const { x, y, width, height } = line.getBBox();
+      const centerX = x + width / 2;
+      const centerY = y + height / 2;
+      const left = `${(centerX / 900) * 100}%`;
+      const top = `${(centerY / 520) * 100}%`;
+
+      const blip = document.createElement("div");
+      blip.className = "float-icon";
+      blip.setAttribute("role", "presentation");
+      blip.title = choice.label;
+      blip.textContent = choice.icon;
+      blip.style.left = left;
+      blip.style.top = top;
+      canvasWrapper.appendChild(blip);
+
+      setTimeout(() => blip.remove(), 1700);
     }
 
     function log(message) {
@@ -522,6 +582,7 @@
       config.current = {};
       config.best = {};
       config.bestCost = Infinity;
+      config.lastDiameters = {};
       iterationEl.textContent = "0";
       bestCostEl.textContent = "—";
       candidateCostEl.textContent = "—";
