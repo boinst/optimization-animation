@@ -465,7 +465,8 @@
       return Math.sqrt(variance).toFixed(2);
     }
 
-    function updateVisuals(candidate, isBest = false) {
+    function updateVisuals(candidate, { isBest = false, trackChanges = false } = {}) {
+      const changed = [];
       Object.entries(candidate).forEach(([pipeId, diameter]) => {
         const line = svgPipes.get(pipeId);
         if (!line) return;
@@ -474,11 +475,19 @@
         line.setAttribute("stroke", pipeColor(diameter));
         line.classList.toggle("best", isBest);
 
-        if (previous !== undefined && Math.abs(previous - diameter) > 0.05) {
-          emitImpactIcon(pipeId);
+        if (trackChanges && previous !== undefined && Math.abs(previous - diameter) > 0.05) {
+          changed.push(pipeId);
         }
         config.lastDiameters[pipeId] = diameter;
       });
+      return changed;
+    }
+
+    function emitRandomImpactIcons(changedPipes) {
+      if (!changedPipes.length) return;
+      const count = Math.min(changedPipes.length, Math.random() < 0.5 ? 1 : 2);
+      const shuffled = [...changedPipes].sort(() => Math.random() - 0.5);
+      shuffled.slice(0, count).forEach(emitImpactIcon);
     }
 
     function emitImpactIcon(pipeId) {
@@ -530,16 +539,17 @@
       tickerText.textContent = `Iteration ${config.iteration}: evaluating swarm members...`;
 
       config.current = candidate;
-      updateVisuals(candidate);
+      const changedThisStep = updateVisuals(candidate, { trackChanges: true });
+      emitRandomImpactIcons(changedThisStep);
 
       if (cost < config.bestCost) {
         config.bestCost = cost;
         config.best = candidate;
         bestCostEl.textContent = cost.toFixed(1);
-        updateVisuals(candidate, true);
+        updateVisuals(candidate, { isBest: true });
         log(`Global best improved to ${cost.toFixed(1)} at iteration ${config.iteration}.`);
       } else if (Math.random() < 0.15 && config.best) {
-        updateVisuals(config.best, true);
+        updateVisuals(config.best, { isBest: true });
         log("Intensifying around best solution...");
       } else if (Math.random() < 0.1) {
         const perturbed = Object.fromEntries(
